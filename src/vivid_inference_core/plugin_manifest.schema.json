@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vivid.dev/schemas/plugin-manifest.schema.json",
+  "title": "Vivid Plugin Manifest",
+  "type": "object",
+  "required": ["schema_version", "id", "name", "kind", "entry_script"],
+  "properties": {
+    "schema_version": { "type": "integer", "minimum": 2 },
+    "id": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,128}$" },
+    "name": { "type": "string", "minLength": 1 },
+    "kind": { "type": "string", "enum": ["effect", "inference"] },
+    "entry_script": { "type": "string", "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9_./-]+\\.py$" }
+  },
+  "additionalProperties": true
+}

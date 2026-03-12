@@ -17,3 +17,5 @@ jobs:
         run: python scripts/validate_templates.py
       - name: Audit private boundary leakage
         run: python scripts/audit_private_boundary.py
+      - name: Run contract/scaffold tests
+        run: python -m unittest discover -s tests

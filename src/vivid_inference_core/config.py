@@ -46,8 +46,81 @@ class InferenceConfig:
         return int(self.data.get("streams", 1))
 
     @property
+    def tiling(self):
+        return self.data.get("tiling", False)
+
+    @property
+    def frameskip(self):
+        return self.data.get("frameskip", False) or self.data.get("skip", False)
+
+    @property
+    def tile_w(self):
+        return int(self.data.get("tileWidth", 512))
+
+    @property
+    def tile_h(self):
+        return int(self.data.get("tileHeight", 512))
+
+    @property
     def fp16(self):
         return self.data.get("fp16", False) or self.data.get("halfPrecision", False)
+
+    @property
+    def multi(self):
+        return int(self.data.get("multi", 2))
+
+    @property
+    def uhd_mode(self):
+        return self.data.get("rife_uhd", False)
+
+    @property
+    def tta_mode(self):
+        return self.data.get("rife_tta", False)
+
+    @property
+    def scene_detection(self):
+        return self.data.get("sc", False)
+
+    @property
+    def sensitivity(self):
+        return self.data.get("sensitivity", False)
+
+    @property
+    def sensitivity_value(self):
+        return self.data.get("sensitivityValue", 0.180)
+
+    @property
+    def dedup_mode(self):
+        return self.data.get("dedupMode", "off")
+
+    @property
+    def dedup_threshold(self):
+        return float(self.data.get("dedupThreshold", 0.001))
+
+    @property
+    def loop_interpolation(self):
+        return self.data.get("loop", False)
+
+    @property
+    def max_resolution(self):
+        return int(self.data.get("maxResolution", 0))
+
+    @property
+    def padding(self):
+        return self.data.get("padding", False)
+
+    @property
+    def to_pad_width(self):
+        return int(self.data.get("toPadWidth", 0))
+
+    @property
+    def to_pad_height(self):
+        return int(self.data.get("toPadHeight", 0))
+
+    @property
+    def device_ids(self):
+        ids = self.data.get("deviceIds", [])
+        return [int(i) for i in ids] if ids else [0]
 
     @property
     def backend(self):

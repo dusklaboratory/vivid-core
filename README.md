@@ -7,6 +7,7 @@ It is designed for community contributions around:
 - new model logic implementations,
 - backend adapters and compatibility layers,
 - manifest-based plugin contracts and validation.
+- host-agnostic runtime orchestration hooks used by desktop hosts.
 
 ## What this repo includes
 
@@ -15,10 +16,11 @@ It is designed for community contributions around:
 - Runtime helpers for safe custom repo path handling.
 - A plugin runner contract that can execute frame-based or graph-based plugins.
 - Community extension registry (`community_registry`) used by Vivid runtime.
+- A public `run_pipeline(...)` runtime orchestrator with host hook injection.
 
 ## How contributions affect Vivid
 
-Vivid now attempts to load `vivid_inference_core` at runtime (auto mode) and uses:
+Vivid now loads `vivid_inference_core` by default (`VIVID_INFERENCE_CORE_MODE=public`) and uses:
 
 - `community_registry.resolve_model_logic(model_type)` for model/effect dispatch extensions
 - `community_registry.create_backend(backend_name, ...)` for backend extensions
@@ -27,6 +29,27 @@ Vivid now attempts to load `vivid_inference_core` at runtime (auto mode) and use
 To expose a new architecture, contributors register aliases in `community_registry` (for example `["community_my_arch"]`) and provide a compatible `ModelLogic` implementation.
 
 For Rust-side model-type parsing, Vivid supports engine tokens like `community:<slug>` and forwards `<slug>` into Python model logic resolution.
+
+### Public runtime contract
+
+The public `run_pipeline(...)` supports host-level hook injection for:
+
+- source/plugin loading setup,
+- model artifact lookup fallback,
+- fallback policy application,
+- decision tracing and logging integration,
+- structured progress callbacks.
+
+This keeps orchestration open for researchers while still allowing app hosts to wire product-specific infrastructure.
+
+### One-command scaffolding
+
+Generate a starter extension without boilerplate:
+
+```bash
+python3 scripts/scaffold_extension.py --kind plugin --id my-effect --name "My Effect" --output-dir /tmp/my-effect
+python3 scripts/scaffold_extension.py --kind model-pack --id myarch --output-dir /tmp/myarch-pack
+```
 
 ### Community model-pack contract
 

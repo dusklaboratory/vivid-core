@@ -17,7 +17,47 @@ class BackendFactoryProtocol(Protocol):
 class ModelLogicProtocol(Protocol):
     PYTORCH_NATIVE: bool
 
+    def prepare(self, config: Any) -> None:
+        ...
+
+    def validate(self, config: Any) -> None:
+        ...
+
     def process(self, clip: Any, config: Any, backend: Any, model_path: str) -> Any:
+        ...
+
+    def finalize(self, config: Any) -> None:
+        ...
+
+
+class EffectLogicProtocol(Protocol):
+    def prepare(self, config: Any) -> None:
+        ...
+
+    def validate(self, config: Any) -> None:
+        ...
+
+    def process(self, clip: Any, config: Any, backend: Any, model_path: str) -> Any:
+        ...
+
+    def finalize(self, config: Any) -> None:
+        ...
+
+
+@dataclass(frozen=True)
+class ProgressEventContract:
+    fps: float
+    frame: int
+    total: int
+    progress: float
+    eta: int
+
+
+class RuntimeCallbacksProtocol(Protocol):
+    def emit_log(self, message: str) -> None:
+        ...
+
+    def emit_progress(self, event: ProgressEventContract) -> None:
         ...
 
 

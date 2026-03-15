@@ -115,13 +115,7 @@ def _build_frame_processor_clip(plugin_module, clip, config):
 
 
 def run_plugin(plugin_script_path, tmp_json_path=None):
-    try:
-        _run_plugin_impl(plugin_script_path, tmp_json_path)
-    except Exception as e:
-        print(f"[PluginRunner] ERROR: Plugin execution failed: {e}", file=sys.stderr)
-        import traceback
-        traceback.print_exc(file=sys.stderr)
-        sys.exit(1)
+    _run_plugin_impl(plugin_script_path, tmp_json_path)
 
 
 def _run_plugin_impl(plugin_script_path, tmp_json_path=None):
@@ -242,7 +236,14 @@ def _entrypoint():
     else:
         script = ""
         tmp = os.environ.get("tmp", "")
-    run_plugin(script, tmp)
+    try:
+        run_plugin(script, tmp)
+    except Exception as e:
+        print(f"[PluginRunner] ERROR: Plugin execution failed: {e}", file=sys.stderr)
+        import traceback
+
+        traceback.print_exc(file=sys.stderr)
+        sys.exit(1)
 
 
 def _should_autorun_entrypoint() -> bool:

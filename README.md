@@ -1,4 +1,6 @@
-# vivid-inference-core
+# Vivid Inference Core
+
+<img width="1200" height="671" alt="image" src="https://github.com/user-attachments/assets/c7e53855-5fff-4bee-8227-96453e7f9e8e" />
 
 `vivid-inference-core` is the open-source inference extension surface extracted from Vivid.
 

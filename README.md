@@ -5,7 +5,7 @@
 ##
 <img width="1200" height="671" alt="image" src="https://github.com/user-attachments/assets/35e41db3-b1ef-4e14-be06-877f6bec9bbe" />
 
-## `vivid-inference-core` is Vivid's *open extension SDK* for:
+## `vivid-core` is Vivid's *open extension SDK* for:
 
 - custom plugin scripts (`effect` / `inference`),
 - community model architectures ("model packs"),

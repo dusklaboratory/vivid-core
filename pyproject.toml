@@ -3,7 +3,7 @@ requires = ["setuptools>=69.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "vivid-inference-core"
+name = "vivid-core"
 version = "0.1.0"
 description = "Open inference core contracts and plugin runtime for Vivid."
 readme = "README.md"
@@ -17,8 +17,8 @@ classifiers = [
 dependencies = ["numpy>=1.24"]
 
 [project.urls]
-Homepage = "https://github.com/dusklabs/vivid-inference-core"
-Issues = "https://github.com/dusklabs/vivid-inference-core/issues"
+Homepage = "https://github.com/dusklaboratory/vivid-core"
+Issues = "https://github.com/dusklaboratory/vivid-core/issues"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

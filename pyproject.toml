@@ -17,8 +17,8 @@ classifiers = [
 dependencies = ["numpy>=1.24"]
 
 [project.urls]
-Homepage = "https://github.com/vividlabs/vivid-inference-core"
-Issues = "https://github.com/vividlabs/vivid-inference-core/issues"
+Homepage = "https://github.com/dusklabs/vivid-inference-core"
+Issues = "https://github.com/dusklabs/vivid-inference-core/issues"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

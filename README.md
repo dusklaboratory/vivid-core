@@ -159,3 +159,6 @@ Add entries to `catalog/community_catalog.json`:
 
 - Community: AGPL-3.0-only (`LICENSE`)
 - Commercial exception: `LICENSE-COMMERCIAL.md`
+
+##
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/b3c97a8b-0f45-4ec0-a890-835f1e5c2949" />

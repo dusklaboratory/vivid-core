@@ -13,6 +13,8 @@
 - host-agnostic runtime orchestration hooks.
 
 The goal is simple: contributors can ship model logic without patching host internals.
+##
+<img width="1707" height="947" alt="image" src="https://github.com/user-attachments/assets/5bdf9698-8579-45e6-bec6-3c080fbb824e" />
 
 ## 2-minute quickstart
 

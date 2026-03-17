@@ -1,8 +1,12 @@
-# Vivid Inference Core
+<img width="200" height="100" alt="image" src="https://github.com/user-attachments/assets/6d4c4f2e-1b10-4433-9382-5101e0a059c1" />
 
-<img width="1200" height="671" alt="image" src="https://github.com/user-attachments/assets/c7e53855-5fff-4bee-8227-96453e7f9e8e" />
+##
+**Vivid** is an elegant GUI for **Video Frame Interpolation**, **Video Upscaling**, and **Video Restoration** powered by AI. Built with **React/TypeScript** and **Tauri (Rust)** for a lightweight, fast, and secure desktop experience. It ships with a pre-packaged runtime — no Docker, WSL, or manual Python setup required.
+##
+<img width="1200" height="671" alt="image" src="https://github.com/user-attachments/assets/35e41db3-b1ef-4e14-be06-877f6bec9bbe" />
 
-`vivid-inference-core` is the open-source inference extension surface extracted from Vivid.
+##
+## **`vivid-inference-core` is the open-source inference extension surface extracted from Vivid.**
 
 It is designed for community contributions around:
 
@@ -10,6 +14,10 @@ It is designed for community contributions around:
 - backend adapters and compatibility layers,
 - manifest-based plugin contracts and validation.
 - host-agnostic runtime orchestration hooks used by desktop hosts.
+
+##
+<img width="3420" height="1910" alt="image" src="https://github.com/user-attachments/assets/b80896b1-057b-4482-8dfe-96e7d6dd2a6e" />
+
 
 ## What this repo includes
 
@@ -113,12 +121,6 @@ Shape:
   ]
 }
 ```
-
-## What this repo does not include
-
-- Vivid cloud/auth/licensing implementation.
-- private scheduling heuristics or business policy.
-- product-specific catalog ranking/telemetry logic.
 
 ## Versioning policy
 

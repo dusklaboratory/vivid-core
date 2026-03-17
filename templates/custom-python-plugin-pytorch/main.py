@@ -1,13 +1,12 @@
 import numpy as np
 import torch
+from vivid_inference_core import resolve_torch_device
 
 
 def init_plugin(config: dict):
     params = config.get("plugin_params", {})
-    backend = (config.get("backend") or "").lower()
-    use_cuda = backend.startswith("pytorch") and torch.cuda.is_available()
     return {
-        "device": torch.device("cuda" if use_cuda else "cpu"),
+        "device": resolve_torch_device(config.get("backend")),
         "strength": float(params.get("strength", 0.5)),
     }
 

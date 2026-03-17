@@ -1,6 +1,11 @@
 from __future__ import annotations
 
-from vivid_inference_core import CommunityModelLogicBase, ModelArtifactSpec, register_model_pack
+from vivid_inference_core import (
+    CommunityModelLogicBase,
+    ModelArtifactSpec,
+    register_model_pack,
+    resolve_model_repo,
+)
 
 
 class ExampleCommunityUpscaler(CommunityModelLogicBase):
@@ -18,11 +23,13 @@ class ExampleCommunityUpscaler(CommunityModelLogicBase):
 def resolve_example_artifact(model_name: str | None, config_data: dict, current_dir: str) -> str | None:
     _ = config_data
     stem = model_name or "example-v1"
+    model_repo_root = resolve_model_repo("community-example", current_dir=current_dir)
+    model_repo_paths = [model_repo_root] if model_repo_root else []
     specs = [
         ModelArtifactSpec(
             search_roots=[
-                f"{current_dir}/../external/models/community-example",
-                f"{current_dir}/../external/models/upstream-repos/community-example",
+                f"{current_dir}/../models/community-example",
+                *model_repo_paths,
             ],
             file_stems=[stem],
         )

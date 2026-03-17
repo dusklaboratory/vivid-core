@@ -7,15 +7,13 @@ from pathlib import Path
 
 
 PLUGIN_MAIN = """import numpy as np
-import torch
+from vivid_inference_core import resolve_torch_device
 
 
 def init_plugin(config: dict):
     params = config.get("plugin_params", {})
-    backend = (config.get("backend") or "").lower()
-    use_cuda = backend.startswith("pytorch") and torch.cuda.is_available()
     return {
-        "device": torch.device("cuda" if use_cuda else "cpu"),
+        "device": resolve_torch_device(config.get("backend")),
         "strength": float(params.get("strength", 0.5)),
     }
 
@@ -59,7 +57,12 @@ def model_pack_python(slug: str) -> str:
     class_name = "".join(part.capitalize() for part in slug.replace("_", "-").split("-")) or "CommunityModel"
     return f"""from __future__ import annotations
 
-from vivid_inference_core import CommunityModelLogicBase, ModelArtifactSpec, register_model_pack
+from vivid_inference_core import (
+    CommunityModelLogicBase,
+    ModelArtifactSpec,
+    register_model_pack,
+    resolve_model_repo,
+)
 
 
 class {class_name}(CommunityModelLogicBase):
@@ -75,11 +78,13 @@ class {class_name}(CommunityModelLogicBase):
 def resolve_{slug.replace("-", "_")}_artifact(model_name: str | None, config_data: dict, current_dir: str) -> str | None:
     _ = config_data
     stem = model_name or "{slug}-v1"
+    model_repo_root = resolve_model_repo("{slug}", current_dir=current_dir)
+    model_repo_paths = [model_repo_root] if model_repo_root else []
     specs = [
         ModelArtifactSpec(
             search_roots=[
-                f"{{current_dir}}/../external/models/community-{slug}",
-                f"{{current_dir}}/../external/models/upstream-repos/community-{slug}",
+                f"{{current_dir}}/../models/community-{slug}",
+                *model_repo_paths,
             ],
             file_stems=[stem],
         )

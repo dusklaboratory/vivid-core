@@ -1,4 +1,5 @@
-<img width="200" height="100" alt="image" src="https://github.com/user-attachments/assets/6d4c4f2e-1b10-4433-9382-5101e0a059c1" />
+<img width="257" height="367" alt="image" src="https://github.com/user-attachments/assets/9c6be837-6901-4f85-85d9-472442403460" />
+
 
 ##
 **Vivid** is an elegant GUI for **Video Frame Interpolation**, **Video Upscaling**, and **Video Restoration** powered by AI. Built with **React/TypeScript** and **Tauri (Rust)** for a lightweight, fast, and secure desktop experience. It ships with a pre-packaged runtime — no Docker, WSL, or manual Python setup required. Download vivid [here](https://vividenhance.com/)

@@ -2,18 +2,28 @@ from __future__ import annotations
 
 from vivid_inference_core import (
     CommunityModelLogicBase,
+    EngineCapabilityContract,
     ModelArtifactSpec,
     register_model_pack,
     resolve_model_repo,
 )
 
+EXAMPLE_CAPABILITIES = EngineCapabilityContract(
+    supported_backends=["pytorch", "pytorch-cuda", "cpu", "dml", "trt", "trt-rtx", "ort-cuda"],
+    required_pip_deps=["torch"],
+    required_upstream_repos=[],
+    supports_onnx=True,
+    supports_pytorch=True,
+    execution_mode="hybrid",
+    fallback_backends=["pytorch", "cpu"],
+)
+
 
 class ExampleCommunityUpscaler(CommunityModelLogicBase):
     PYTORCH_NATIVE = True
+    ENGINE_CAPABILITIES = EXAMPLE_CAPABILITIES
 
     def process(self, clip, config, backend, model_path):
-        # Replace with real inference path.
-        # model_path may resolve to .onnx/.pth/.pt/.pkl/.param/.safetensors
         _ = backend
         _ = config
         _ = model_path

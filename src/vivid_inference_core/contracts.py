@@ -83,6 +83,22 @@ class PluginRepoPolicyContract:
 
 
 @dataclass(frozen=True)
+class EngineCapabilityContract:
+    """
+    Declarative backend/dependency metadata for community engine packs.
+    Community contributors can declare this alongside their model logic
+    so the host catalog can ingest the metadata without private-code patching.
+    """
+    supported_backends: list[str] = field(default_factory=list)
+    required_pip_deps: list[str] = field(default_factory=list)
+    required_upstream_repos: list[str] = field(default_factory=list)
+    supports_onnx: bool = False
+    supports_pytorch: bool = False
+    execution_mode: str = "vsmlrt"
+    fallback_backends: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
 class PluginManifestContract:
     schema_version: int
     id: str
@@ -92,3 +108,4 @@ class PluginManifestContract:
     backends: list[str] = field(default_factory=list)
     parameters: list[PluginParameterContract] = field(default_factory=list)
     repo: PluginRepoPolicyContract | None = None
+    engine_capabilities: EngineCapabilityContract | None = None

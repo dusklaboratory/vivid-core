@@ -1,6 +1,9 @@
+CONTRACT_VERSION = 1
+
 from .contracts import (
     BackendFactoryProtocol,
     EffectLogicProtocol,
+    EngineCapabilityContract,
     ModelLogicProtocol,
     PluginManifestContract,
     PluginParameterContract,
@@ -50,7 +53,9 @@ except ModuleNotFoundError:
 
 __all__ = [
     "BackendFactoryProtocol",
+    "CONTRACT_VERSION",
     "EffectLogicProtocol",
+    "EngineCapabilityContract",
     "ModelLogicProtocol",
     "PluginManifestContract",
     "PluginParameterContract",

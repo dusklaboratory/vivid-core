@@ -114,10 +114,12 @@ class InferencePipeline:
                 },
             )
 
-        _apply_resource_limits()
-
         script_dir = self._get_script_dir()
         self._load_vs_plugins(script_dir)
+
+        # After VS plugin dirs are registered (and optional PyTorch-first warmup on Windows),
+        # resource limits may import torch — matches src/inference/inference_impl/core.py order.
+        _apply_resource_limits()
         self._apply_fallback_policy(self.config, core, self.tracer)
 
         cloud_threads = int(self.config.data.get("cloudThreads", 0))

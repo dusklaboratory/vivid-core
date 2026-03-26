@@ -45,7 +45,7 @@ def run_pipeline(
     pipeline falls back to minimal defaults.
     """
     try:
-        from inference_impl.core import InferencePipeline, validate_backend, run_preflight
+        from inference_impl.core import InferencePipeline
     except ImportError:
         raise RuntimeError(
             "vivid_inference_core.run_pipeline requires the host inference_impl "
@@ -58,8 +58,6 @@ def run_pipeline(
     if backend_name is None:
         backend_name = pipeline.config.backend
 
-    backend_name = validate_backend(model_type, backend_name)
-    run_preflight(model_type, backend_name)
     pipeline.run(backend_name)
 
 

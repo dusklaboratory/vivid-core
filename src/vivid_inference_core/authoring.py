@@ -1,114 +1,63 @@
+"""Authoring helpers for community model packs and extensions."""
+
 from __future__ import annotations
 
 import os
-import sys
-from pathlib import Path
-from typing import Iterable
+from dataclasses import dataclass, field
+from typing import Any, Callable
 
 
-def normalize_backend_name(backend_name: str | None) -> str:
-    return (backend_name or "").strip().lower().replace("_", "-")
+@dataclass(frozen=True)
+class EngineCapabilityContract:
+    """Declares what an engine supports so the host runtime can derive install
+    plans, run preflight checks, and filter UI options."""
+
+    supported_backends: list[str] = field(default_factory=list)
+    required_pip_deps: list[str] = field(default_factory=list)
+    required_upstream_repos: list[str] = field(default_factory=list)
+    supports_onnx: bool = False
+    supports_pytorch: bool = False
+    execution_mode: str = "native-torch"
+    fallback_backends: list[str] = field(default_factory=list)
 
 
-def resolve_torch_device(
-    backend_name: str | None = None,
-    *,
-    allow_mps: bool = True,
-):
+@dataclass(frozen=True)
+class ModelArtifactSpec:
+    """Flexible artifact discovery spec for community model packs."""
+
+    search_roots: list[str] = field(default_factory=list)
+    file_stems: list[str] = field(default_factory=list)
+    extensions: list[str] = field(default_factory=lambda: [".pth", ".onnx", ".safetensors", ".pkl"])
+
+
+class CommunityModelLogicBase:
+    """Base class for community-contributed model logic.
+
+    Subclass this and implement ``process()`` to add a new model architecture
+    to Vivid without modifying host internals.
     """
-    Resolve a practical PyTorch device for plugin/model-pack authors.
 
-    Strategy mirrors Vivid's runtime behavior:
-    - Prefer CUDA when backend indicates GPU CUDA usage and CUDA is available.
-    - Prefer MPS when backend indicates CoreML/Apple and MPS is available.
-    - Otherwise fall back to best available accelerator, then CPU.
-    """
-    import torch
+    PYTORCH_NATIVE: bool = False
+    ENGINE_CAPABILITIES: EngineCapabilityContract | None = None
 
-    backend = normalize_backend_name(backend_name)
-    if backend.startswith("pytorch-cuda") or backend in {"trt", "trt-rtx", "ort-cuda"}:
-        if torch.cuda.is_available():
-            return torch.device("cuda")
-
-    if backend in {"coreml", "ort-coreml"} and allow_mps:
-        if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-            return torch.device("mps")
-
-    if torch.cuda.is_available():
-        return torch.device("cuda")
-    if allow_mps and hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-        return torch.device("mps")
-    return torch.device("cpu")
-
-
-def get_model_repo_root(current_dir: str | None = None) -> str | None:
-    """
-    Locate a host-provided model repository root.
-
-    Resolution order:
-    1) VIVID_MODEL_REPO_ROOT env var
-    2) common host locations
-    3) walk upward from current_dir / cwd looking for repo layouts
-    """
-    env_override = os.environ.get("VIVID_MODEL_REPO_ROOT", "").strip()
-    candidates = [
-        env_override,
-        "/usr/local/lib/vapoursynth/models/extensions",
-    ]
-
-    if current_dir:
-        base = Path(current_dir).expanduser().resolve()
-        candidates.extend(
-            [
-                str(base / "../models/extensions"),
-                str(base / "../../models/extensions"),
-                str(base / "../../../models/extensions"),
-                str(base / "../model-repos"),
-                str(base / "../../model-repos"),
-            ]
+    def process(self, clip: Any, config: Any, backend: Any, model_path: str) -> Any:
+        raise NotImplementedError(
+            f"{type(self).__name__}.process() must be implemented by the model pack author."
         )
 
-    for candidate in candidates:
-        if candidate and os.path.isdir(candidate):
-            return os.path.abspath(candidate)
-
-    probe = Path(current_dir or os.getcwd()).expanduser().resolve()
-    for _ in range(10):
-        nested = probe / "models" / "extensions"
-        flat = probe / "model-repos"
-        if nested.is_dir():
-            return str(nested.resolve())
-        if flat.is_dir():
-            return str(flat.resolve())
-        if probe.parent == probe:
-            break
-        probe = probe.parent
-    return None
-
-
-def resolve_model_repo(repo_name: str, *, current_dir: str | None = None) -> str | None:
-    root = get_model_repo_root(current_dir=current_dir)
-    if not root:
+    @staticmethod
+    def resolve_from_specs(specs: list[ModelArtifactSpec]) -> str | None:
+        """Walk artifact specs and return the first matching file path."""
+        for spec in specs:
+            for root in spec.search_roots:
+                if not root or not os.path.isdir(root):
+                    continue
+                for stem in spec.file_stems:
+                    for ext in spec.extensions:
+                        candidate = os.path.join(root, stem + ext)
+                        if os.path.isfile(candidate):
+                            return candidate
+                        candidate_lower = os.path.join(root, stem.lower() + ext)
+                        if os.path.isfile(candidate_lower):
+                            return candidate_lower
         return None
-    candidate = Path(root) / repo_name
-    if candidate.is_dir():
-        return str(candidate.resolve())
-    return None
-
-
-def ensure_model_repo_on_path(
-    repo_name: str,
-    *,
-    extra_subdirs: Iterable[str] = (),
-    current_dir: str | None = None,
-) -> str | None:
-    root = get_model_repo_root(current_dir=current_dir)
-    repo_path = resolve_model_repo(repo_name, current_dir=current_dir)
-    if not root or not repo_path:
-        return None
-
-    entries = [root, repo_path, *[str(Path(repo_path) / subdir) for subdir in extra_subdirs]]
-    for entry in entries:
-        if os.path.isdir(entry) and entry not in sys.path:
-            sys.path.insert(0, entry)
-    return repo_path

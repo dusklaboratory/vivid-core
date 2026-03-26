@@ -118,7 +118,7 @@ register_model_pack(
 
 ## Make it visible in Vivid's picker
 
-Add entries to `catalog/community_catalog.json`:
+Add entries to `catalog/community_catalog.json` (validated by `catalog/community_catalog.schema.json`):
 
 ```json
 {
@@ -128,21 +128,59 @@ Add entries to `catalog/community_catalog.json`:
       "operation": "interpolation",
       "engine": "community:myarch",
       "label": "Community - MyArch",
+      "description": "Motion-aware temporal interpolation",
       "backends": ["cpu", "pytorch-cuda"],
-      "models": [{ "value": "myarch-v1", "label": "MyArch v1", "recommended": true }]
+      "models": [
+        { "value": "myarch-v1", "label": "V1 Standard", "recommended": true },
+        { "value": "myarch-v2-lite", "label": "V2 Lite" }
+      ]
     }
   ]
 }
 ```
 
+### How display names work
+
+The `label` fields you set here are the **exact text** users see in the Vivid UI:
+
+| Field | Where it appears |
+|-------|-----------------|
+| Engine `label` | Algorithm picker dropdown, queue card header, processing page |
+| Engine `description` | Tooltip/subtitle in the algorithm picker |
+| Model `label` | Model dropdown, queue card model line |
+
+Vivid resolves all display names through a single catalog-first lookup chain (`src/renderer/utils/displayNames.ts`). Your catalog labels take priority over any filename-based fallback, so you have full control over what the user sees.
+
+**Naming tips:**
+- **Engine label**: Use the full architecture name — e.g. `"Community - MyArch"` or `"MyArch - Temporal SR"`. This is shown in the algorithm picker.
+- **Model label**: Keep it short and **don't repeat the engine name** — the engine is displayed separately. Use `"V2 Lite"` instead of `"MyArch V2 Lite"`. The UI strips the engine prefix automatically, but clean labels from the catalog are always preferred.
+
+## Package structure
+
+```
+vivid-core/
+├── src/vivid_inference_core/
+│   ├── __init__.py            # CONTRACT_VERSION, run_pipeline, top-level re-exports
+│   ├── contracts.py           # Canonical contracts (BackendFactoryProtocol, ModelLogicProtocol, etc.)
+│   ├── community_registry.py  # resolve_model_logic, resolve_model_artifact, create_backend, register_model_pack
+│   ├── plugin_runner.py       # _entrypoint (frame-processor + graph-mode dispatch)
+│   ├── authoring.py           # CommunityModelLogicBase, ModelArtifactSpec, EngineCapabilityContract
+│   └── helpers.py             # resolve_torch_device, resolve_model_repo, ensure_model_repo_on_path
+├── templates/plugin-pytorch/  # Starter template for PyTorch plugins
+├── scripts/scaffold_extension.py  # CLI scaffolding tool
+└── catalog/
+    ├── community_catalog.json         # Community engine/model entries (consumed by UI)
+    └── community_catalog.schema.json  # JSON Schema for the above
+```
+
 ## Public API highlights
 
 - Contracts: `contracts.py`
-- Plugin manifest schema: `plugin_manifest.schema.json`
 - Runner: `plugin_runner.py`
 - Registry: `community_registry.py`
 - Runtime orchestrator: `run_pipeline(...)`
 - Authoring helpers: `authoring.py`
+- Device/repo helpers: `helpers.py`
 
 ## Compatibility + scope
 

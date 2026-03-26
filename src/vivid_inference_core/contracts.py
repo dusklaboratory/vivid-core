@@ -1,3 +1,10 @@
+"""Canonical contract definitions for the Vivid extension SDK.
+
+These types define the stable boundary between host runtime and extensions.
+The in-repo mirror at ``src/inference/inference_impl/contracts.py`` falls back
+to these when the package is installed.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -17,47 +24,7 @@ class BackendFactoryProtocol(Protocol):
 class ModelLogicProtocol(Protocol):
     PYTORCH_NATIVE: bool
 
-    def prepare(self, config: Any) -> None:
-        ...
-
-    def validate(self, config: Any) -> None:
-        ...
-
     def process(self, clip: Any, config: Any, backend: Any, model_path: str) -> Any:
-        ...
-
-    def finalize(self, config: Any) -> None:
-        ...
-
-
-class EffectLogicProtocol(Protocol):
-    def prepare(self, config: Any) -> None:
-        ...
-
-    def validate(self, config: Any) -> None:
-        ...
-
-    def process(self, clip: Any, config: Any, backend: Any, model_path: str) -> Any:
-        ...
-
-    def finalize(self, config: Any) -> None:
-        ...
-
-
-@dataclass(frozen=True)
-class ProgressEventContract:
-    fps: float
-    frame: int
-    total: int
-    progress: float
-    eta: int
-
-
-class RuntimeCallbacksProtocol(Protocol):
-    def emit_log(self, message: str) -> None:
-        ...
-
-    def emit_progress(self, event: ProgressEventContract) -> None:
         ...
 
 

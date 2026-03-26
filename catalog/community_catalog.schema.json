@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vivid.dev/schemas/community-catalog.schema.json",
+  "title": "Vivid Community Catalog",
+  "description": "Defines community/extension engines and models that appear in Vivid's UI. The `label` fields are the exact display names shown in the algorithm picker, queue card, and model selector — choose them carefully.",
+  "type": "object",
+  "required": ["version", "engines"],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Schema version. Currently 1."
+    },
+    "engines": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/engine" }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "engine": {
+      "type": "object",
+      "required": ["operation", "engine", "label", "models"],
+      "properties": {
+        "operation": {
+          "type": "string",
+          "enum": ["interpolation", "upscaling", "restoration"],
+          "description": "Which processing category this engine belongs to."
+        },
+        "engine": {
+          "type": "string",
+          "description": "Unique engine identifier. Use 'community:<slug>' for community engines.",
+          "pattern": "^[A-Za-z0-9:._-]+$"
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-readable engine name shown in the algorithm picker and queue card. Example: 'MyArch - Super Resolution'. This is the primary display name — it appears as-is in the UI."
+        },
+        "description": {
+          "type": "string",
+          "description": "Short description shown as tooltip/subtitle in the algorithm picker."
+        },
+        "backends": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Allowed backend IDs. If omitted, all backends the host supports are available."
+        },
+        "models": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/model" },
+          "description": "Available model variants for this engine."
+        },
+        "defaultModel": {
+          "type": "string",
+          "description": "Model value to select by default when user switches to this engine."
+        }
+      },
+      "additionalProperties": false
+    },
+    "model": {
+      "type": "object",
+      "required": ["value", "label"],
+      "properties": {
+        "value": {
+          "type": "string",
+          "description": "Model identifier passed to the inference backend. For ONNX models this is the filename; for built-in models it's a short ID like 'myarch-v1'."
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-readable model name shown in the model dropdown and queue card. Keep it short — the engine name is already displayed separately, so don't repeat it here. Example: 'V1 Compact' instead of 'MyArch V1 Compact'."
+        },
+        "recommended": {
+          "type": "boolean",
+          "description": "If true, this model is highlighted as the recommended choice."
+        },
+        "supportedScales": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[234]x$" },
+          "description": "Scale factors this model supports (e.g. ['2x', '4x']). Only relevant for upscaling models."
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,145 +1,149 @@
 #!/usr/bin/env python3
+"""Scaffold a new Vivid extension (plugin or model-pack).
+
+Usage:
+    python3 scaffold_extension.py --kind plugin    --id my-effect --name "My Effect"    --output-dir /tmp/my-effect
+    python3 scaffold_extension.py --kind model-pack --id myarch    --output-dir /tmp/myarch-pack
+"""
+
 from __future__ import annotations
 
 import argparse
 import json
-from pathlib import Path
+import os
+import sys
+import textwrap
 
 
-PLUGIN_MAIN = """import numpy as np
-from vivid_inference_core import resolve_torch_device
+def _write(path: str, content: str) -> None:
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w") as f:
+        f.write(content)
+    print(f"  created {path}")
 
 
-def init_plugin(config: dict):
-    params = config.get("plugin_params", {})
-    return {
-        "device": resolve_torch_device(config.get("backend")),
-        "strength": float(params.get("strength", 0.5)),
-    }
-
-
-def process_frame(frame_hwc: np.ndarray, n: int, config: dict, state: dict) -> np.ndarray:
-    _ = n
-    _ = config
-    strength = max(0.0, min(1.0, float(state.get("strength", 0.5))))
-    return (frame_hwc * (1.0 - 0.1 * strength)).astype(np.float32, copy=False)
-"""
-
-
-def plugin_manifest(plugin_id: str, name: str) -> dict:
-    return {
-        "schema_version": 2,
+def scaffold_plugin(plugin_id: str, name: str, output_dir: str) -> None:
+    manifest = {
+        "schema_version": 1,
         "id": plugin_id,
         "name": name,
-        "kind": "effect",
+        "version": "0.1.0",
+        "author": "Your Name",
+        "description": f"{name} -- a custom Vivid plugin.",
+        "kind": "inference",
         "entry_script": "main.py",
+        "backends": ["cpu", "pytorch", "pytorch-cuda"],
         "parameters": [
             {
                 "id": "strength",
                 "type": "float",
-                "label": "Strength",
+                "label": "Effect Strength",
                 "min": 0.0,
                 "max": 1.0,
                 "default": 0.5,
-                "required": True,
             }
         ],
-        "backends": ["cpu", "pytorch-cuda"],
-        "repo": {
-            "allow_user_override": False,
-            "required_checkpoints": [],
-            "allowed_override_roots": [],
-        },
     }
-
-
-def model_pack_python(slug: str) -> str:
-    class_name = "".join(part.capitalize() for part in slug.replace("_", "-").split("-")) or "CommunityModel"
-    return f"""from __future__ import annotations
-
-from vivid_inference_core import (
-    CommunityModelLogicBase,
-    ModelArtifactSpec,
-    register_model_pack,
-    resolve_model_repo,
-)
-
-
-class {class_name}(CommunityModelLogicBase):
-    PYTORCH_NATIVE = True
-
-    def process(self, clip, config, backend, model_path):
-        _ = backend
-        _ = config
-        _ = model_path
-        return clip
-
-
-def resolve_{slug.replace("-", "_")}_artifact(model_name: str | None, config_data: dict, current_dir: str) -> str | None:
-    _ = config_data
-    stem = model_name or "{slug}-v1"
-    model_repo_root = resolve_model_repo("{slug}", current_dir=current_dir)
-    model_repo_paths = [model_repo_root] if model_repo_root else []
-    specs = [
-        ModelArtifactSpec(
-            search_roots=[
-                f"{{current_dir}}/../models/community-{slug}",
-                *model_repo_paths,
-            ],
-            file_stems=[stem],
-        )
-    ]
-    return CommunityModelLogicBase.resolve_from_specs(specs)
-
-
-register_model_pack(
-    aliases=["{slug}"],
-    model_logic={class_name},
-    artifact_resolver=resolve_{slug.replace("-", "_")}_artifact,
-)
-"""
-
-
-def write_file(path: Path, content: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
-
-
-def scaffold_plugin(output_dir: Path, extension_id: str, name: str) -> None:
-    write_file(output_dir / "main.py", PLUGIN_MAIN)
-    manifest = plugin_manifest(extension_id, name)
-    write_file(output_dir / "manifest.json", json.dumps(manifest, indent=2) + "\n")
-    print(f"[scaffold] Created plugin template at {output_dir}")
-
-
-def scaffold_model_pack(output_dir: Path, extension_id: str) -> None:
-    write_file(output_dir / f"{extension_id.replace('-', '_')}.py", model_pack_python(extension_id))
-    write_file(
-        output_dir / "README.md",
-        (
-            f"# Community Model Pack: {extension_id}\n\n"
-            "Register this pack by importing the Python module above from your host entrypoint.\n"
-        ),
+    _write(
+        os.path.join(output_dir, "manifest.json"),
+        json.dumps(manifest, indent=2) + "\n",
     )
-    print(f"[scaffold] Created model pack template at {output_dir}")
+
+    main_py = textwrap.dedent("""\
+        import numpy as np
+
+        try:
+            from vivid_inference_core import resolve_torch_device
+        except ImportError:
+            resolve_torch_device = None
 
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Scaffold Vivid inference extensions.")
-    parser.add_argument("--kind", choices=["plugin", "model-pack"], required=True)
-    parser.add_argument("--id", required=True, help="Extension id/slug, e.g. anime-research-v1")
-    parser.add_argument("--name", default="Community Extension", help="Human-readable name")
-    parser.add_argument("--output-dir", required=True, help="Target directory for generated files")
-    return parser.parse_args()
+        def init_plugin(config: dict) -> dict:
+            params = config.get("plugin_params", {})
+            device = None
+            if resolve_torch_device is not None:
+                device = resolve_torch_device(config.get("backend"))
+            return {
+                "device": device,
+                "strength": float(params.get("strength", 0.5)),
+            }
+
+
+        def process_frame(
+            frame_hwc: np.ndarray, n: int, config: dict, state: dict
+        ) -> np.ndarray:
+            strength = max(0.0, min(1.0, float(state.get("strength", 0.5))))
+            return (frame_hwc * (1.0 - 0.1 * strength)).astype(np.float32, copy=False)
+    """)
+    _write(os.path.join(output_dir, "main.py"), main_py)
+    print(f"\nPlugin '{name}' scaffolded at {output_dir}")
+
+
+def scaffold_model_pack(pack_id: str, output_dir: str) -> None:
+    model_pack_py = textwrap.dedent(f"""\
+        from vivid_inference_core import (
+            CommunityModelLogicBase,
+            EngineCapabilityContract,
+            ModelArtifactSpec,
+            register_model_pack,
+            resolve_model_repo,
+        )
+
+
+        class {pack_id.capitalize()}Model(CommunityModelLogicBase):
+            PYTORCH_NATIVE = True
+
+            ENGINE_CAPABILITIES = EngineCapabilityContract(
+                supported_backends=["pytorch", "pytorch-cuda"],
+                required_pip_deps=["torch"],
+                supports_pytorch=True,
+                execution_mode="native-torch",
+            )
+
+            def process(self, clip, config, backend, model_path):
+                # TODO: implement inference logic
+                return clip
+
+
+        def _resolve_artifact(model_name, config_data, current_dir):
+            stem = model_name or "{pack_id}-v1"
+            repo_root = resolve_model_repo("{pack_id}", current_dir=current_dir)
+            model_repo_paths = [repo_root] if repo_root else []
+            specs = [
+                ModelArtifactSpec(
+                    search_roots=[
+                        f"{{current_dir}}/../models/community-{pack_id}",
+                        *model_repo_paths,
+                    ],
+                    file_stems=[stem],
+                )
+            ]
+            return CommunityModelLogicBase.resolve_from_specs(specs)
+
+
+        register_model_pack(
+            aliases=["{pack_id}"],
+            model_logic={pack_id.capitalize()}Model,
+            artifact_resolver=_resolve_artifact,
+        )
+    """)
+    _write(os.path.join(output_dir, f"{pack_id}_pack.py"), model_pack_py)
+    print(f"\nModel pack '{pack_id}' scaffolded at {output_dir}")
 
 
 def main() -> None:
-    args = parse_args()
-    output_dir = Path(args.output_dir).expanduser().resolve()
+    parser = argparse.ArgumentParser(description="Scaffold a Vivid extension.")
+    parser.add_argument("--kind", required=True, choices=["plugin", "model-pack"])
+    parser.add_argument("--id", required=True, help="Extension identifier slug")
+    parser.add_argument("--name", default="", help="Human-readable name (plugins)")
+    parser.add_argument("--output-dir", required=True, help="Where to write files")
+    args = parser.parse_args()
+
     if args.kind == "plugin":
-        scaffold_plugin(output_dir, args.id, args.name)
-        return
-    scaffold_model_pack(output_dir, args.id)
+        name = args.name or args.id.replace("-", " ").title()
+        scaffold_plugin(args.id, name, args.output_dir)
+    else:
+        scaffold_model_pack(args.id, args.output_dir)
 
 
 if __name__ == "__main__":

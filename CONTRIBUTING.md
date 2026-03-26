@@ -50,6 +50,16 @@ class MyModel(CommunityModelLogicBase):
 
 The package declares `CONTRACT_VERSION` (currently `1`). The host supports a version range for backward compatibility. When authoring new extensions, target the current `CONTRACT_VERSION`. Avoid depending on internal host APIs — use only symbols exported from `vivid_inference_core.__init__`.
 
+## Display names and catalog labels
+
+When adding entries to `catalog/community_catalog.json`, the `label` fields directly control what users see in the Vivid UI. The host app resolves all display names from structured catalogs — no regex or filename parsing is involved.
+
+Guidelines:
+- **Engine `label`**: Use the full human-readable architecture name (e.g. `"MyArch - Temporal SR"`). This appears in the algorithm dropdown and queue card.
+- **Model `label`**: Keep it short and don't repeat the engine name — the engine is already displayed separately. Use `"V2 Compact"` instead of `"MyArch V2 Compact"`.
+- **Engine `description`**: Optional one-line summary shown as a subtitle in the algorithm picker.
+- Validate your entries against `catalog/community_catalog.schema.json` before submitting.
+
 ## Model contribution baseline
 
 - Document expected input/output tensor shape.
@@ -57,3 +67,4 @@ The package declares `CONTRACT_VERSION` (currently `1`). The host supports a ver
 - Add deterministic smoke fixture for one frame path.
 - Prefer explicit CPU/CUDA/MPS fallback behavior instead of hardcoding CUDA-only paths.
 - Declare all pip dependencies in `ENGINE_CAPABILITIES.required_pip_deps` so the host can install them automatically.
+- Add your engine and model entries to `catalog/community_catalog.json` with clear, concise labels so they appear correctly in Vivid's UI.

@@ -1,3 +1,16 @@
+"""Vivid Inference Core — public runtime shim.
+
+When invoked from the Vivid desktop host (``runtime_hooks`` is provided),
+this module delegates *entirely* to ``inference_impl.core.InferencePipeline``
+so that community packs benefit from the host's full pipeline: BestSource
+fallback chain, VFR correction, dedup, resource limits, decision tracing, and
+backend validation.
+
+When invoked standalone (e.g. tests or scripts without the host), a minimal
+self-contained pipeline runs instead.  This fallback path is intentionally
+limited — it is not a replacement for the full host runtime.
+"""
+
 from __future__ import annotations
 
 import json
@@ -15,6 +28,10 @@ from .contracts import ProgressEventContract
 
 core = vs.core
 
+
+# ---------------------------------------------------------------------------
+# Internal helpers (standalone fallback only)
+# ---------------------------------------------------------------------------
 
 def _get_hook(hooks: dict[str, Any] | None, name: str, default: Any = None) -> Any:
     if not hooks:
@@ -35,33 +52,19 @@ def _noop(*_args: Any, **_kwargs: Any) -> None:
     return None
 
 
-def _apply_resource_limits() -> None:
-    vram_frac = os.environ.get("VIVID_VRAM_FRACTION")
-    if vram_frac:
-        try:
-            import torch
-
-            frac = float(vram_frac)
-            if torch.cuda.is_available():
-                torch.cuda.set_per_process_memory_fraction(frac)
-                print(f"[ResourceLimits] CUDA memory fraction set to {frac}", file=sys.stderr)
-        except Exception as exc:
-            print(f"[ResourceLimits] Could not apply VRAM limit: {exc}", file=sys.stderr)
-
-    ram_mb = os.environ.get("VIVID_RAM_LIMIT_MB")
-    if ram_mb:
-        try:
-            import resource
-
-            limit_bytes = max(int(ram_mb) * 1024 * 1024, 256 * 1024 * 1024)
-            if hasattr(resource, "RLIMIT_AS"):
-                resource.setrlimit(resource.RLIMIT_AS, (limit_bytes, limit_bytes))
-                print(f"[ResourceLimits] RLIMIT_AS set to {limit_bytes // (1024*1024)} MB", file=sys.stderr)
-        except Exception as exc:
-            print(f"[ResourceLimits] Could not apply RAM limit: {exc}", file=sys.stderr)
-
+# ---------------------------------------------------------------------------
+# Public-facing InferencePipeline
+# ---------------------------------------------------------------------------
 
 class InferencePipeline:
+    """Host-delegating inference pipeline for community packs.
+
+    When the Vivid host is present (``runtime_hooks`` supplied), construction
+    immediately wraps the host ``inference_impl.core.InferencePipeline`` and
+    all public methods delegate to it.  Standalone usage falls back to a
+    minimal implementation suitable for testing.
+    """
+
     def __init__(
         self,
         model_logic_class_or_instance: Any,
@@ -69,6 +72,24 @@ class InferencePipeline:
         model_type: str = "esrgan",
         runtime_hooks: dict[str, Any] | None = None,
     ) -> None:
+        self._runtime_hooks = runtime_hooks or {}
+        self._host_pipeline: Any = None
+
+        if runtime_hooks:
+            # Delegate to the host pipeline.  The host exports its class via
+            # the same hook dict that was passed here by _build_public_runtime_hooks().
+            try:
+                from inference_impl.core import InferencePipeline as HostPipeline
+                self._host_pipeline = HostPipeline(
+                    model_logic_class_or_instance,
+                    backend_factory_class,
+                    model_type,
+                )
+                return
+            except ImportError:
+                pass
+
+        # Standalone fallback path.
         self.config = InferenceConfig()
         self.model_logic = (
             model_logic_class_or_instance
@@ -77,29 +98,61 @@ class InferencePipeline:
         )
         self.backend_factory = backend_factory_class
         self.model_type = model_type
-        self.runtime_hooks = runtime_hooks or {}
         self.tracer = None
 
-        self._get_script_dir: Callable[[], str] = _get_hook(self.runtime_hooks, "get_script_dir", _get_script_dir)
+        self._get_script_dir: Callable[[], str] = _get_hook(self._runtime_hooks, "get_script_dir", _get_script_dir)
         self._find_model_file: Callable[[str, str, str], str] = _get_hook(
-            self.runtime_hooks, "find_model_file", _find_model_file_default
+            self._runtime_hooks, "find_model_file", _find_model_file_default
         )
-        self._load_vs_plugins: Callable[[str], None] = _get_hook(self.runtime_hooks, "load_vs_plugins", _noop)
+        self._load_vs_plugins: Callable[[str], None] = _get_hook(self._runtime_hooks, "load_vs_plugins", _noop)
         self._apply_fallback_policy: Callable[[Any, Any, Any], None] = _get_hook(
-            self.runtime_hooks, "apply_fallback_policy", _noop
+            self._runtime_hooks, "apply_fallback_policy", _noop
         )
-        self._create_tracer: Callable[[str, bool], Any] = _get_hook(self.runtime_hooks, "create_tracer", lambda *_: None)
-        self._log_header: Callable[[str, str], None] = _get_hook(self.runtime_hooks, "log_header", _noop)
-        self._log_system_info: Callable[[str], None] = _get_hook(self.runtime_hooks, "log_system_info", _noop)
-        self._log_config: Callable[[str, dict, str], None] = _get_hook(self.runtime_hooks, "log_config", _noop)
-        self._prepare_environment: Callable[[], None] = _get_hook(
-            self.runtime_hooks, "prepare_environment", _noop
-        )
+        self._create_tracer: Callable[[str, bool], Any] = _get_hook(self._runtime_hooks, "create_tracer", lambda *_: None)
+        self._log_header: Callable[[str, str], None] = _get_hook(self._runtime_hooks, "log_header", _noop)
+        self._log_system_info: Callable[[str], None] = _get_hook(self._runtime_hooks, "log_system_info", _noop)
+        self._log_config: Callable[[str, dict, str], None] = _get_hook(self._runtime_hooks, "log_config", _noop)
+        self._prepare_environment: Callable[[], None] = _get_hook(self._runtime_hooks, "prepare_environment", _noop)
         self._emit_progress: Callable[[ProgressEventContract], None] = _get_hook(
-            self.runtime_hooks, "emit_progress", _noop
+            self._runtime_hooks, "emit_progress", _noop
         )
 
+    # ------------------------------------------------------------------
+    # Delegation helpers
+    # ------------------------------------------------------------------
+
+    def _delegate(self, method: str, *args: Any, **kwargs: Any) -> Any:
+        """Call the same method on the host pipeline if available."""
+        if self._host_pipeline is not None:
+            return getattr(self._host_pipeline, method)(*args, **kwargs)
+        return getattr(self, f"_standalone_{method}")(*args, **kwargs)
+
+    # ------------------------------------------------------------------
+    # Public interface — always routes through the host when present
+    # ------------------------------------------------------------------
+
     def setup(self) -> None:
+        if self._host_pipeline is not None:
+            self._host_pipeline.setup()
+            return
+        self._standalone_setup()
+
+    def load_source(self):
+        if self._host_pipeline is not None:
+            return self._host_pipeline.load_source()
+        return self._standalone_load_source()
+
+    def run(self, backend_name: str = "coreml") -> None:
+        if self._host_pipeline is not None:
+            self._host_pipeline.run(backend_name)
+            return
+        self._standalone_run(backend_name)
+
+    # ------------------------------------------------------------------
+    # Standalone fallback implementations
+    # ------------------------------------------------------------------
+
+    def _standalone_setup(self) -> None:
         self._prepare_environment()
         trace_enabled = bool(self.config.data.get("decisionTraceEnabled", True))
         trace_path = self.config.data.get("decisionTracePath") or f"{self.config.tmp_file}.decision_trace.jsonl"
@@ -138,7 +191,7 @@ class InferencePipeline:
         self._log_system_info(label)
         self._log_config(label, self.config.data, self.config.tmp_file)
 
-    def load_source(self):
+    def _standalone_load_source(self):
         video_path = self.config.video_path
         if self.config.ossystem == "Windows":
             return core.lsmas.LWLibavSource(source=video_path, cache=0)
@@ -147,7 +200,7 @@ class InferencePipeline:
         except Exception:
             return core.ffms2.Source(source=video_path, cache=False)
 
-    def _resolve_model_path(self) -> str | None:
+    def _standalone_resolve_model_path(self) -> str | None:
         script_dir = self._get_script_dir()
         try:
             resolved = resolve_model_artifact(
@@ -162,7 +215,7 @@ class InferencePipeline:
             print(f"[Init] Public artifact resolution failed: {exc}", file=sys.stderr)
         return self._find_model_file(self.config.model_input, self.model_type, script_dir)
 
-    def attach_progress(self, clip):
+    def _standalone_attach_progress(self, clip):
         total_frames = len(clip)
         start_time = time.time()
         last_emit: list[float] = [0.0]
@@ -197,16 +250,16 @@ class InferencePipeline:
 
         return core.std.ModifyFrame(clip, clip, log_progress)
 
-    def run(self, backend_name: str = "coreml") -> None:
+    def _standalone_run(self, backend_name: str = "coreml") -> None:
         try:
-            self.setup()
+            self._standalone_setup()
             if hasattr(self.model_logic, "prepare"):
                 self.model_logic.prepare(self.config)
             if hasattr(self.model_logic, "validate"):
                 self.model_logic.validate(self.config)
 
-            clip = self.load_source()
-            model_path = self._resolve_model_path()
+            clip = self._standalone_load_source()
+            model_path = self._standalone_resolve_model_path()
 
             is_pytorch_backend = str(backend_name).startswith("pytorch")
             if getattr(self.model_logic, "PYTORCH_NATIVE", False) or is_pytorch_backend:
@@ -225,7 +278,7 @@ class InferencePipeline:
             else:
                 final_clip = core.resize.Bicubic(output_clip, format=vs.YUV420P8)
 
-            final_clip = self.attach_progress(final_clip)
+            final_clip = self._standalone_attach_progress(final_clip)
             final_clip.set_output()
         except Exception as exc:
             if self.tracer and hasattr(self.tracer, "emit"):
@@ -241,6 +294,10 @@ class InferencePipeline:
                 self.tracer.close()
 
 
+# ---------------------------------------------------------------------------
+# Public entry point
+# ---------------------------------------------------------------------------
+
 def run_pipeline(
     model_logic_class: Any,
     backend_factory_class: Any,
@@ -248,10 +305,21 @@ def run_pipeline(
     backend_name: str | None = None,
     runtime_hooks: dict[str, Any] | None = None,
 ) -> None:
+    """Run the inference pipeline.
+
+    When called by the host with *runtime_hooks*, the host's full
+    ``InferencePipeline`` (including validation, dedup, VFR, etc.) is used.
+    When called standalone (no hooks), a minimal fallback executes.
+    """
     pipeline = InferencePipeline(
         model_logic_class_or_instance=model_logic_class,
         backend_factory_class=backend_factory_class,
         model_type=model_type,
         runtime_hooks=runtime_hooks,
     )
-    pipeline.run(backend_name or pipeline.config.backend)
+    effective_backend = backend_name or (
+        pipeline._host_pipeline.config.backend
+        if pipeline._host_pipeline is not None
+        else pipeline.config.backend
+    )
+    pipeline.run(effective_backend)

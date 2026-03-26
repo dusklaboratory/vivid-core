@@ -1,0 +1,29 @@
+{
+  "schema_version": 2,
+  "id": "pytorch_demo_inference",
+  "name": "PyTorch Demo Inference",
+  "kind": "inference",
+  "version": "0.1.0",
+  "author": "Your Name",
+  "description": "Starter template for a custom PyTorch inference plugin.",
+  "entry_script": "main.py",
+  "backends": ["pytorch-cuda", "cpu"],
+  "parameters": [
+    {
+      "id": "strength",
+      "type": "float",
+      "label": "Strength",
+      "min": 0.0,
+      "max": 1.0,
+      "default": 0.5,
+      "required": true
+    }
+  ],
+  "repo": {
+    "repo_root": null,
+    "entry_module": null,
+    "required_checkpoints": [],
+    "allow_user_override": true,
+    "allowed_override_roots": []
+  }
+}
